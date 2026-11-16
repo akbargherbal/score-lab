@@ -23,7 +23,7 @@ score. Unrelated to any production project; this is for learning.*
 | `tools/abc_to_musicxml.py` | تحويل سكور ABC (لهجة arabmaqamrock) إلى MusicXML 4.0 الذي يفتحه MuseScore |
 | `tools/musescore` | مُشغّل الواجهة الرسومية (WSLg) |
 | `tools/mscore-cli` | تحويل/تصدير بلا نافذة: pdf, png, mp3, flac, mid, mscz |
-| `tools/take_shot.sh` | تصوير نافذة WSLg (MuseScore) من جهة ويندوز — للتحقق البصري |
+| `tools/take_shot.sh` | تصوير نافذة WSLg (MuseScore) من جهة ويندوز — `--list`, `--wait`, `--client`، للتحقق البصري |
 | `tools/vendor/` | نسخة مثبّتة من parser `abc_tools.py` (MIT) ليكون المستودع مكتفيًا بذاته |
 | `examples/demo.abc` | ٤ بارات: كوردات + لحن + ربط (tie) عبر خط البار |
 | `tests/` | ١١ اختبار على المحوّل (بدون شبكة، بدون MuseScore) |

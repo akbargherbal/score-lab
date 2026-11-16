@@ -88,32 +88,47 @@ tools/mscore-cli -o out.mscz  in.musicxml   # ملف MuseScore الأصلي
 ## ٥) تصوير النافذة (للتحقق البصري)
 
 WSLg يرسم نوافذ لينكس كنوافذ ويندوز (المضيف `msrdc`)، فالتقاطها من داخل WSL
-بـ`scrot`/`xwd` يطلع **أبيض**. الحل: الالتقاط من جهة ويندوز عبر PowerShell:
+بـ`scrot`/`xwd` يطلع **أبيض**. الحل: الالتقاط من جهة ويندوز عبر PowerShell.
 
 ```bash
-./tools/take_shot.sh /tmp/ms.png          # أكبر نافذة WSLg
-./tools/take_shot.sh /tmp/ms.png demo     # نافذة عنوانها يحتوي "demo"
-./tools/take_shot.sh /tmp/aud.png Audacity   # يعمل مع برامج ويندوز أيضًا
+tools/take_shot.sh --list                     # شنو يمكن تصويره الآن؟
+tools/take_shot.sh /tmp/ms.png                # أكبر نافذة WSLg
+tools/take_shot.sh /tmp/ms.png demo           # نافذة عنوانها فيه "demo"
+tools/take_shot.sh /tmp/ms.png --wait 20      # انتظر ظهور النافذة (بعد التشغيل)
+tools/take_shot.sh /tmp/aud.png Audacity      # برامج ويندوز الأصلية بعد
 ```
 
 المخرَج:
 
 ```
 TITLE:demo.musicxml (Ubuntu-22.04)
-NOTE:ALREADY_MAXIMIZED
+NOTE:FOCUS_FAILED (Windows refused foreground; capturing anyway)
 SIZE:1920x1032
-Saved: /tmp/ms.png (103208 bytes)
+Saved: /tmp/ms.png (132479 bytes)
 ```
 
-مصائد واجهتها أثناء التكييف:
+### حلقة التحقق البصري
+
+```bash
+setsid tools/musescore score.musicxml &      # 1) شغّل
+tools/take_shot.sh /tmp/s.png --wait 20      # 2) صوّر (ينتظر النافذة)
+                                             # 3) اقرأ الصورة، صحّح، أعد
+```
+
+### مصائد حقيقية واجهتها أثناء التثبيت هنا
 
 - **MuseScore يسمّي نافذته باسم الملف المفتوح** (`demo.musicxml (Ubuntu-22.04)`)،
-  فالبحث عن كلمة "MuseScore" لا يجد شيئًا. لذلك الافتراضي: أكبر نافذة WSLg.
-- **`EnumWindows` من PowerShell يُطلق من WSL** رجّع نافذة واحدة فقط (نافذته هو)،
+  فالبحث عن "MuseScore" لا يجد شيئًا؛ لذلك الافتراضي «أكبر نافذة WSLg».
+- **`EnumWindows` من PowerShell يُطلق من WSL** زار نافذة واحدة فقط (نافذته هو)
   رغم أن المقبض موجود؛ الحل: المشي على سلسلة `GetWindow(GW_HWNDNEXT)`.
-- التكبير **مطفأ افتراضيًا** (لا نغيّر ترتيب نوافذك)؛ فعّله بـ`SHOT_AUTO_MAXIMIZE=1`.
-- `SHOT_AUTO_FOCUS=0` يجعل النافذة المصغّرة/غير النشطة خطأً صريحًا بدل تصحيحها.
-- إن كانت عدة نوافذ مطابقة يطبع `NOTE:MULTIPLE_MATCHES` ويأخذ الأكبر.
+- **نوافذ WSLg بلا إطار Win32**: `--client` لا يقصّ شريط العنوان عندها
+  (`GetClientRect == GetWindowRect`)، لكنه مفيد لبرامج ويندوز الأصلية.
+- **تكبير النافذة مطفأ افتراضيًا** حتى لا يتغيّر ترتيب نوافذك: `--maximize`.
+- **مؤشّر الفأرة**: لو بقي فوق شريط المهام تظهر معاينات ويندوز داخل الصورة،
+  فالسكربت ينقل المؤشّر للزاوية وينتظر ٩٠٠ms قبل النسخ (`--keep-cursor` يعطّله).
+- **`SetForegroundWindow` يُرفض عادة** لعملية خلفية (يظهر `NOTE:FOCUS_FAILED`)
+  والالتقاط ينجح مع ذلك. لهذا لا تحاول قيادة الواجهة بلوحة المفاتيح من وكيل:
+  المفاتيح ستذهب إلى النافذة النشطة فعلًا، وقد تكون طرفيتك.
 
 ---
 
