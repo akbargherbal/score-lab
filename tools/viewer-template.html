@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>عارض السكور — __TITLE__</title>
+<style>
+  :root { --bg:#14171c; --panel:#1c2129; --ink:#e8eaef; --dim:#8b93a1;
+          --accent:#4ea1ff; --vocal:#ff6b8a; --ins:#59c9a5; --bar:#39424f; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:14px/1.45 system-ui, "Segoe UI", sans-serif; }
+  header { display:flex; gap:16px; align-items:baseline; padding:12px 18px;
+           border-bottom:1px solid #262c35; background:var(--panel); }
+  header h1 { font-size:16px; margin:0; font-weight:600; }
+  header .meta { color:var(--dim); font-size:12.5px; }
+  .readout { display:flex; gap:22px; align-items:baseline; padding:10px 18px;
+             font-variant-numeric:tabular-nums; }
+  .readout b { font-size:22px; font-weight:600; }
+  .readout span { color:var(--dim); font-size:12px; }
+  .readout .chord { font-size:20px; font-weight:700; color:var(--accent); }
+  .readout .section { font-size:15px; color:var(--ins); }
+  .controls { display:flex; gap:10px; align-items:center; padding:0 18px 10px; }
+  button { background:#26303c; color:var(--ink); border:1px solid #37424f;
+           border-radius:6px; padding:6px 12px; cursor:pointer; font-size:13px; }
+  button:hover { background:#2f3b4a; }
+  button.on { background:var(--accent); color:#08111c; border-color:var(--accent); }
+  input[type=range] { flex:1; accent-color:var(--accent); }
+  .grid { display:grid; grid-template-columns: minmax(0,2.1fr) minmax(280px,1fr);
+          gap:14px; padding:0 18px 18px; align-items:start; }
+  .stack { display:flex; flex-direction:column; gap:8px; min-width:0; }
+  canvas { display:block; width:100%; background:var(--panel);
+           border:1px solid #262c35; border-radius:6px; }
+  .pagecard { background:var(--panel); border:1px solid #262c35; border-radius:6px;
+              padding:8px; }
+  .pagecard img { width:100%; display:block; border-radius:3px; background:#fff; }
+  .pagecard .cap { color:var(--dim); font-size:12px; padding-top:6px;
+                   display:flex; justify-content:space-between; }
+  .legend { color:var(--dim); font-size:12px; padding:0 2px 4px; }
+  .legend i { display:inline-block; width:9px; height:9px; border-radius:2px;
+              margin-inline-end:5px; }
+  .hint { color:var(--dim); font-size:12px; padding:0 18px 16px; }
+  kbd { background:#26303c; border:1px solid #37424f; border-radius:4px;
+        padding:1px 5px; font-size:11.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>__TITLE__</h1>
+  <div class="meta" id="meta"></div>
+</header>
+
+<div class="readout">
+  <div><b id="clock">00:00.0</b><br><span>الزمن</span></div>
+  <div><b id="bar">1</b><br><span id="bars-label">بار</span></div>
+  <div><b class="chord" id="chord">—</b><br><span>الكورد</span></div>
+  <div><b class="section" id="section">—</b><br><span>القسم</span></div>
+  <div><b id="beat" style="font-size:15px">—</b><br><span>النبضة</span></div>
+</div>
+
+<div class="controls">
+  <button id="play">▶ تشغيل</button>
+  <input type="range" id="seek" min="0" max="1000" value="0" step="1">
+  <button id="zoom" class="on">تكبير: الكل</button>
+</div>
+
+<div class="grid">
+  <div class="stack">
+    <div class="legend">
+      <i style="background:var(--vocal)"></i>Vocal
+      <i style="background:var(--ins); margin-inline-start:12px"></i>Ins
+      <i style="background:var(--accent); margin-inline-start:12px"></i>موضع التشغيل
+    </div>
+    <div class="legend">الموجة + خطوط البارات</div>
+    <canvas id="wave" height="120"></canvas>
+    <div class="legend">الكوردات</div>
+    <canvas id="chords" height="34"></canvas>
+    <div class="legend">الأقسام</div>
+    <canvas id="sections" height="28"></canvas>
+    <div class="legend">النوتات (بيانو-رول) — أعلى = أعلى طبقة</div>
+    <canvas id="roll" height="230"></canvas>
+  </div>
+  <div class="pagecard">
+    <img id="page" alt="صفحة السكور">
+    <div class="cap"><span id="pagecap">—</span><span>≈ تزامن تقديري</span></div>
+  </div>
+</div>
+
+<div class="hint">
+  <kbd>Space</kbd> تشغيل/إيقاف · انقر على الموجة أو البيانو-رول للقفز ·
+  <kbd>←</kbd>/<kbd>→</kbd> بار للخلف/الأمام
+</div>
+
+<audio id="audio" src="__AUDIO__" preload="auto"></audio>
+
+<script>
+const DATA = __DATA__;
+
+const fmt = t => {
+  const m = Math.floor(t / 60), s = t - m * 60;
+  return String(m).padStart(2, '0') + ':' + s.toFixed(1).padStart(4, '0');
+};
+
+const audio = document.getElementById('audio');
+const wave = document.getElementById('wave');
+const chordC = document.getElementById('chords');
+const sectC = document.getElementById('sections');
+const rollC = document.getElementById('roll');
+const pageImg = document.getElementById('page');
+const seek = document.getElementById('seek');
+const playBtn = document.getElementById('play');
+const zoomBtn = document.getElementById('zoom');
+
+const DUR = DATA.duration;
+let view = { t0: 0, t1: Math.min(DUR, DATA.zoomSpan), zoomed: true };
+
+function fit(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.round(r.width * dpr));
+  canvas.height = Math.round(canvas.height / dpr * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: r.width, h: r.height };
+}
+
+function barIndexAt(t) {
+  let lo = 0, hi = DATA.bars.length - 1, ans = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (DATA.bars[mid] <= t) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+  }
+  return ans;
+}
+
+function chordAt(t) {
+  for (let i = DATA.chords.length - 1; i >= 0; i--) {
+    const c = DATA.chords[i];
+    if (t >= c[0] && t < c[1]) return c[2];
+  }
+  return '—';
+}
+function sectionAt(t) {
+  for (let i = DATA.sections.length - 1; i >= 0; i--) {
+    const s = DATA.sections[i];
+    if (t >= s[0] && t < s[1]) return s[2];
+  }
+  return '—';
+}
+function beatAt(t) {
+  const b = DATA.beats;
+  let lo = 0, hi = b.length - 1, ans = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (b[mid][0] <= t) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+  }
+  if (ans < 0) return '—';
+  const meter = DATA.meter;
+  return ((b[ans][1] - 1) % meter[0] + 1) + '/' + meter[0];
+}
+
+function drawWave(t) {
+  const { ctx, w, h } = fit(wave);
+  ctx.clearRect(0, 0, w, h);
+  const mid = h / 2;
+  const span = view.t1 - view.t0;
+  // section shading
+  for (const s of DATA.sections) {
+    const x0 = (s[0] - view.t0) / span * w, x1 = (s[1] - view.t0) / span * w;
+    if (x1 < 0 || x0 > w) continue;
+    ctx.fillStyle = 'rgba(89,201,165,0.07)';
+    ctx.fillRect(x0, 0, Math.max(1, x1 - x0), h);
+  }
+  // waveform
+  const peaks = DATA.peaks, n = peaks.length;
+  ctx.fillStyle = '#5b6b80';
+  for (let x = 0; x < w; x++) {
+    const i0 = Math.floor((x / w) * n);
+    const i1 = Math.max(i0 + 1, Math.floor(((x + 1) / w) * n));
+    let lo = 1, hi = -1;
+    for (let i = i0; i < i1 && i < n; i++) { lo = Math.min(lo, peaks[i][0]); hi = Math.max(hi, peaks[i][1]); }
+    if (hi < lo) continue;
+    const y0 = mid - hi * mid, y1 = mid - lo * mid;
+    ctx.fillRect(x, y0, 1, Math.max(1, y1 - y0));
+  }
+  // bar ticks
+  ctx.fillStyle = '#39424f';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  DATA.bars.forEach((t, i) => {
+    const x = (t - view.t0) / span * w;
+    if (x < -1 || x > w + 1) return;
+    ctx.fillRect(x, 0, 1, h);
+    if (view.zoomed || i % Math.ceil(DATA.bars.length / 24) === 0) {
+      ctx.fillText(String(i + 1), x + 2, 11);
+    }
+  });
+  // playhead
+  const px = (t - view.t0) / span * w;
+  ctx.fillStyle = '#4ea1ff';
+  ctx.fillRect(px - 1, 0, 2, h);
+}
+
+function drawChords(t) {
+  const { ctx, w, h } = fit(chordC);
+  ctx.clearRect(0, 0, w, h);
+  const span = view.t1 - view.t0;
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'left';
+  for (const c of DATA.chords) {
+    const x0 = (c[0] - view.t0) / span * w, x1 = (c[1] - view.t0) / span * w;
+    if (x1 < 0 || x0 > w) continue;
+    const active = t >= c[0] && t < c[1];
+    ctx.fillStyle = active ? 'rgba(78,161,255,0.30)' : 'rgba(255,255,255,0.05)';
+    ctx.fillRect(x0, 2, Math.max(1, x1 - x0 - 1), h - 4);
+    if (x1 - x0 > 18) {
+      ctx.fillStyle = active ? '#eaf3ff' : '#a9b6c6';
+      ctx.fillText(c[2], x0 + 3, h - 10);
+    }
+  }
+}
+
+function drawSections(t) {
+  const { ctx, w, h } = fit(sectC);
+  ctx.clearRect(0, 0, w, h);
+  const span = view.t1 - view.t0;
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'left';
+  DATA.sections.forEach((s, i) => {
+    const x0 = (s[0] - view.t0) / span * w, x1 = (s[1] - view.t0) / span * w;
+    if (x1 < 0 || x0 > w) return;
+    const active = t >= s[0] && t < s[1];
+    ctx.fillStyle = active ? 'rgba(89,201,165,0.35)' : (i % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.08)');
+    ctx.fillRect(x0, 0, Math.max(1, x1 - x0 - 1), h);
+    if (x1 - x0 > 40) {
+      ctx.fillStyle = active ? '#d7fff1' : '#93a3ae';
+      ctx.fillText(s[2], x0 + 4, h - 9);
+    }
+  });
+}
+
+function drawRoll(t) {
+  const { ctx, w, h } = fit(rollC);
+  ctx.clearRect(0, 0, w, h);
+  const span = view.t1 - view.t0;
+  // bar grid
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  DATA.bars.forEach(b => {
+    const x = (b - view.t0) / span * w;
+    if (x >= 0 && x <= w) ctx.fillRect(x, 0, 1, h);
+  });
+  const pitches = DATA.notes.map(n => n[2]);
+  const pmin = Math.min(...pitches) - 2, pmax = Math.max(...pitches) + 2;
+  const yOf = p => h - ((p - pmin) / (pmax - pmin)) * h;
+  for (const n of DATA.notes) {
+    const x0 = (n[0] - view.t0) / span * w, x1 = (n[1] - view.t0) / span * w;
+    if (x1 < 0 || x0 > w) continue;
+    ctx.fillStyle = n[3] === 0 ? 'rgba(255,107,138,0.85)' : 'rgba(89,201,165,0.85)';
+    const y = yOf(n[2]);
+    ctx.fillRect(x0, y - 2, Math.max(1.5, x1 - x0), 4);
+  }
+  const px = (t - view.t0) / span * w;
+  ctx.fillStyle = '#4ea1ff';
+  ctx.fillRect(px - 1, 0, 2, h);
+}
+
+function updatePages(bar) {
+  const per = DATA.barsPerPage;
+  const idx = Math.min(DATA.pages.length - 1, Math.max(0, Math.floor((bar - 1) / per)));
+  if (pageImg.dataset.idx !== String(idx)) {
+    pageImg.dataset.idx = String(idx);
+    pageImg.src = DATA.pages[idx];
+    document.getElementById('pagecap').textContent =
+      'صفحة ' + (idx + 1) + ' / ' + DATA.pages.length;
+  }
+}
+
+let raf = null;
+function frame() {
+  const t = audio.currentTime;
+  if (view.zoomed) {
+    const half = DATA.zoomSpan * 0.35;
+    view.t0 = Math.max(0, Math.min(DUR - DATA.zoomSpan, t - half));
+    view.t1 = Math.min(DUR, view.t0 + DATA.zoomSpan);
+  }
+  const bar = barIndexAt(t) + 1;
+  drawWave(t); drawChords(t); drawSections(t); drawRoll(t);
+  updatePages(bar);
+  document.getElementById('clock').textContent = fmt(t);
+  document.getElementById('bar').textContent = bar + ' / ' + DATA.bars.length;
+  document.getElementById('chord').textContent = chordAt(t);
+  document.getElementById('section').textContent = sectionAt(t);
+  document.getElementById('beat').textContent = beatAt(t);
+  seek.value = String(Math.round(t / DUR * 1000));
+  if (!audio.paused) raf = requestAnimationFrame(frame);
+}
+function redraw() { const t = audio.currentTime; frame(); }
+
+audio.addEventListener('play', () => {
+  playBtn.textContent = '❚❚ إيقاف';
+  if (!raf) raf = requestAnimationFrame(frame);
+});
+audio.addEventListener('pause', () => {
+  playBtn.textContent = '▶ تشغيل';
+  if (raf) { cancelAnimationFrame(raf); raf = null; }
+});
+audio.addEventListener('seeked', redraw);
+
+playBtn.onclick = () => audio.paused ? audio.play() : audio.pause();
+zoomBtn.onclick = () => {
+  view.zoomed = !view.zoomed;
+  if (!view.zoomed) { view.t0 = 0; view.t1 = DUR; }
+  zoomBtn.classList.toggle('on', view.zoomed);
+  zoomBtn.textContent = view.zoomed ? 'تكبير: الكل' : 'تكبير: ٨ بارات';
+  redraw();
+};
+function seekTo(clientX, el) {
+  const r = el.getBoundingClientRect();
+  const frac = (clientX - r.left) / r.width;
+  audio.currentTime = Math.max(0, Math.min(DUR, view.t0 + frac * (view.t1 - view.t0)));
+  redraw();
+}
+[wave, rollC, chordC].forEach(el => el.addEventListener('click', e => seekTo(e.clientX, el)));
+seek.oninput = () => { audio.currentTime = DUR * (seek.value / 1000); redraw(); };
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
+  if (e.code === 'ArrowRight') { audio.currentTime = Math.min(DUR, audio.currentTime + 2); redraw(); }
+  if (e.code === 'ArrowLeft') { audio.currentTime = Math.max(0, audio.currentTime - 2); redraw(); }
+  if (e.code === 'ArrowRight' && e.shiftKey) {}
+});
+
+document.getElementById('meta').textContent =
+  DATA.key + ' · ' + DATA.meter.join('/') + ' · ♩=' + DATA.bpm + ' · ' +
+  DATA.bars.length + ' بار · ' + fmt(DUR);
+
+window.addEventListener('resize', redraw);
+audio.addEventListener('loadedmetadata', () => {
+  // Deep link: viewer.html#t=75 opens at 1:15 (handy for sharing a moment).
+  const m = /^#t=(\d+(?:\.\d+)?)$/.exec(location.hash);
+  if (m) { audio.currentTime = Math.min(DUR, parseFloat(m[1])); }
+  redraw();
+});
+redraw();
+</script>
+</body>
+</html>

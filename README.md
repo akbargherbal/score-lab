@@ -20,10 +20,12 @@ score. Unrelated to any production project; this is for learning.*
 |---|---|
 | `docs/abc-primer-ar.md` | **ابدأ من هنا**: شنو السكور، شنو ABC، جدول الرموز والمدد، وكيف تقرأ ملفًا سطرًا بسطر |
 | `docs/musescore-on-wsl.md` | تثبيت MuseScore على WSL بلا أي بناء، التشغيل الرسومي والـheadless، وربط MCP |
+| `docs/synchronized-viewer.md` | العارض المتزامن: التسجيل الأصلي + البارات والكوردات والأقسام والنوتات وصفحة السكور في وقت واحد |
 | `tools/abc_to_musicxml.py` | تحويل سكور ABC (لهجة arabmaqamrock) إلى MusicXML 4.0 الذي يفتحه MuseScore |
 | `tools/musescore` | مُشغّل الواجهة الرسومية (WSLg) |
 | `tools/mscore-cli` | تحويل/تصدير بلا نافذة: pdf, png, mp3, flac, mid, mscz |
 | `tools/take_shot.sh` | تصوير نافذة WSLg (MuseScore) من جهة ويندوز — `--list`, `--wait`, `--client`، للتحقق البصري |
+| `tools/score_viewer.py` | عارض متزامن: التسجيل الأصلي + الموجة + البارات + الكوردات + الأقسام + النوتات + صفحة السكور على خط زمني واحد |
 | `tools/vendor/` | نسخة مثبّتة من parser `abc_tools.py` (MIT) ليكون المستودع مكتفيًا بذاته |
 | `examples/demo.abc` | ٤ بارات: كوردات + لحن + ربط (tie) عبر خط البار |
 | `tests/` | ١١ اختبار على المحوّل (بدون شبكة، بدون MuseScore) |
