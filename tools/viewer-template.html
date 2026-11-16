@@ -112,6 +112,10 @@ const zoomBtn = document.getElementById('zoom');
 
 const DUR = DATA.duration;
 let view = { t0: 0, t1: Math.min(DUR, DATA.zoomSpan), zoomed: true };
+// Deep links and headless previews: before the media is seekable the clock
+// comes from here, so the first paint already shows the requested moment.
+let pendingSeek = null;
+const now = () => pendingSeek !== null ? pendingSeek : audio.currentTime;
 
 function fit(canvas) {
   const dpr = window.devicePixelRatio || 1;
@@ -276,7 +280,7 @@ function updatePages(bar) {
 
 let raf = null;
 function frame() {
-  const t = audio.currentTime;
+  const t = now();
   if (view.zoomed) {
     const half = DATA.zoomSpan * 0.35;
     view.t0 = Math.max(0, Math.min(DUR - DATA.zoomSpan, t - half));
@@ -293,7 +297,7 @@ function frame() {
   seek.value = String(Math.round(t / DUR * 1000));
   if (!audio.paused) raf = requestAnimationFrame(frame);
 }
-function redraw() { const t = audio.currentTime; frame(); }
+function redraw() { frame(); }
 
 audio.addEventListener('play', () => {
   playBtn.textContent = '❚❚ إيقاف';
@@ -314,13 +318,14 @@ zoomBtn.onclick = () => {
   redraw();
 };
 function seekTo(clientX, el) {
+  pendingSeek = null;
   const r = el.getBoundingClientRect();
   const frac = (clientX - r.left) / r.width;
   audio.currentTime = Math.max(0, Math.min(DUR, view.t0 + frac * (view.t1 - view.t0)));
   redraw();
 }
 [wave, rollC, chordC].forEach(el => el.addEventListener('click', e => seekTo(e.clientX, el)));
-seek.oninput = () => { audio.currentTime = DUR * (seek.value / 1000); redraw(); };
+seek.oninput = () => { pendingSeek = null; audio.currentTime = DUR * (seek.value / 1000); redraw(); };
 
 window.addEventListener('keydown', e => {
   if (e.code === 'Space') { e.preventDefault(); playBtn.click(); }
@@ -334,12 +339,31 @@ document.getElementById('meta').textContent =
   DATA.bars.length + ' بار · ' + fmt(DUR);
 
 window.addEventListener('resize', redraw);
-audio.addEventListener('loadedmetadata', () => {
-  // Deep link: viewer.html#t=75 opens at 1:15 (handy for sharing a moment).
-  const m = /^#t=(\d+(?:\.\d+)?)$/.exec(location.hash);
-  if (m) { audio.currentTime = Math.min(DUR, parseFloat(m[1])); }
+// Deep link: viewer.html#t=75 opens at 1:15 (handy for sharing a moment).
+// A seek issued before the media is seekable is queued by the browser and can
+// report 0 for a moment, so the target lives in pendingSeek and the view keeps
+// rendering from it until a real 'seeked' event confirms it.
+function trySeek() {
+  if (pendingSeek === null) return;
+  try { audio.currentTime = pendingSeek; } catch (e) { return; }
   redraw();
+}
+audio.addEventListener('seeked', () => {
+  if (pendingSeek !== null && Math.abs(audio.currentTime - pendingSeek) <= 0.5) {
+    pendingSeek = null;
+    redraw();
+  }
 });
+['loadedmetadata', 'canplay', 'loadstart'].forEach(ev =>
+  audio.addEventListener(ev, trySeek));
+audio.addEventListener('playing', () => { pendingSeek = null; });
+function deepLink() {
+  const m = /^#t=(\d+(?:\.\d+)?)$/.exec(location.hash);
+  if (!m) return;
+  pendingSeek = Math.min(DUR, parseFloat(m[1]));
+  trySeek();
+}
+deepLink();
 redraw();
 </script>
 </body>

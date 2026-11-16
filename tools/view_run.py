@@ -95,13 +95,13 @@ INDEX = """<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
  tr:hover{{background:#1a1f27}}
  a{{color:#4ea1ff;text-decoration:none}}
  a:hover{{text-decoration:underline}}
- img{{width:56px;border-radius:3px;background:#fff}}
+ img{{width:72px;border-radius:3px;background:#fff}}
  .num{{font-variant-numeric:tabular-nums;color:#b9c2cf}}
 </style></head><body>
 <header><h1>عارضات السكور المتزامنة — {n} take</h1>
 <div class="sub">{run}</div></header>
 <table><thead><tr><th>غلاف</th><th>take</th><th>مدّة</th><th>مقام</th>
-<th>ميزان</th><th>♩</th><th>بارات</th><th>كوردات</th><th>صفحات</th>
+<th>ميزان</th><th>BPM</th><th>بارات</th><th>كوردات</th><th>صفحات</th>
 <th>رندر الموديل</th></tr></thead><tbody>
 {rows}
 </tbody></table></body></html>
