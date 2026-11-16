@@ -121,11 +121,19 @@ if ($candidates.Count -eq 0) {
     exit 1
 }
 
-$pick = $candidates | Sort-Object -Property Area -Descending | Select-Object -First 1
+# Prefer the window the user is actually looking at; a killed app can leave a
+# stale WSLg window behind with the same size as the live one.
+$fg = [WinShot]::GetForegroundWindow()
+$pick = $candidates | Where-Object { $_.Hwnd -eq $fg } | Select-Object -First 1
+$how = "foreground"
+if (-not $pick) {
+    $how = "largest"
+    $pick = $candidates | Sort-Object -Property Area -Descending | Select-Object -First 1
+}
 if ($candidates.Count -gt 1) {
-    $others = ($candidates | Sort-Object -Property Area -Descending |
-               Select-Object -Skip 1 | ForEach-Object { $_.Text }) -join " | "
-    Write-Output "NOTE:MULTIPLE_MATCHES (largest picked; also: $others)"
+    $others = ($candidates | Where-Object { $_.Hwnd -ne $pick.Hwnd } |
+               ForEach-Object { $_.Text }) -join " | "
+    Write-Output "NOTE:MULTIPLE_MATCHES ($how picked; also: $others)"
 }
 
 $hwnd = $pick.Hwnd
