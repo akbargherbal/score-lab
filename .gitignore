@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# MuseScore PNG export writes one file per page
+examples/raw-*.png
+examples/demo-*.png

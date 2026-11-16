@@ -1,0 +1,13 @@
+X:1
+T:
+M:2/4
+L:1/32
+Q:1/4=84
+V: Vocal clef=treble name="Vocal Melody" snm="Vocal"
+V: Ins clef=treble name="Ins Melody" snm="Inst."
+K:Bbm
+% 4 bars: chords on Vocal, melody on Ins, one tie across bars 3-4
+V: Vocal
+"Bbm"z16|"Ebm"z16|"Fm"z16|"Bbm"z16|
+V: Ins
+B8D8|E12D4|F8E8-|E16|

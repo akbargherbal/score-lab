@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Headless MuseScore: batch convert / export with no window and no X server.
+#
+#   mscore-cli -o out.pdf  score.musicxml
+#   mscore-cli -o out.mid  score.musicxml
+#   mscore-cli -o out.mscz score.musicxml
+#   mscore-cli -o out.png  score.musicxml   # writes out-1.png, out-2.png, ...
+#
+# Always exits after the conversion, so it is safe inside scripts and cron.
+set -euo pipefail
+APP="${MUSESCORE_APPIMAGE:-$HOME/Applications/MuseScore-Studio-4.7.7.AppImage}"
+if [ ! -x "$APP" ]; then
+    echo "MuseScore AppImage not found: $APP" >&2
+    echo "See docs/musescore-on-wsl.md, or set MUSESCORE_APPIMAGE." >&2
+    exit 1
+fi
+export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-offscreen}"
+exec "$APP" "$@"

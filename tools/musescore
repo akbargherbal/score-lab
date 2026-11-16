@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# MuseScore Studio GUI launcher for WSLg (X11 via xcb).
+#
+# The AppImage is self-contained: it brings its own Qt/xcb libraries, so no
+# extra apt packages are needed on a stock WSLg Ubuntu. Override the binary
+# with MUSESCORE_APPIMAGE when you upgrade MuseScore.
+set -euo pipefail
+APP="${MUSESCORE_APPIMAGE:-$HOME/Applications/MuseScore-Studio-4.7.7.AppImage}"
+if [ ! -x "$APP" ]; then
+    echo "MuseScore AppImage not found: $APP" >&2
+    echo "See docs/musescore-on-wsl.md (download + chmod +x), or set MUSESCORE_APPIMAGE." >&2
+    exit 1
+fi
+export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
+exec "$APP" "$@"
