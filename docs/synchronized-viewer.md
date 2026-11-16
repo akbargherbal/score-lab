@@ -57,6 +57,19 @@ python3 tools/score_viewer.py --abc "$TRACK" --audio "$OUT/audio.mp3" \
 
 ثم افتح `viewer.html` (من ويندوز: `explorer.exe "$(wslpath -w "$OUT")"`).
 
+## كل التراكات مرة واحدة
+
+```bash
+python3 tools/view_run.py --run ~/score-view/<run> \
+    --audio-dir gs://<bucket>/.../runs/<run> \
+    --out ~/score-view/<run>
+```
+
+يقرأ `<run>/transcripts/<take>/*.lab` و`<run>/<take>.musicxml`، يجيب الصوت من
+`gs://` (أو من مجلد محلي) مرة واحدة، يبني صفحات السكور، ويكتب
+`<out>/<take>/viewer.html` + فهرس `<out>/index.html` فيه كل التراك مع الغلاف
+والمقام والمدد والمجاميع. `--force` يعيد البناء، و`--limit N` للتجربة.
+
 ## بدائل MuseScore الرسمية (4.7)
 
 | المسار | ماذا يعطي | ملاحظة |
