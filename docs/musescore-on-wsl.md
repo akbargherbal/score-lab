@@ -81,9 +81,43 @@ tools/mscore-cli -o out.mscz  in.musicxml   # ملف MuseScore الأصلي
 - رسائل `ALSA lib seq_hw.c ... /dev/snd/seq` عند البدء **غير ضارة**: لا يوجد
   ALSA داخل WSL، والصوت يمرّ عبر PulseAudio.
 
+![MuseScore على WSLg](shots/musescore-gui.png)
+
 ---
 
-## ٥) ربط MCP (اختياري)
+## ٥) تصوير النافذة (للتحقق البصري)
+
+WSLg يرسم نوافذ لينكس كنوافذ ويندوز (المضيف `msrdc`)، فالتقاطها من داخل WSL
+بـ`scrot`/`xwd` يطلع **أبيض**. الحل: الالتقاط من جهة ويندوز عبر PowerShell:
+
+```bash
+./tools/take_shot.sh /tmp/ms.png          # أكبر نافذة WSLg
+./tools/take_shot.sh /tmp/ms.png demo     # نافذة عنوانها يحتوي "demo"
+./tools/take_shot.sh /tmp/aud.png Audacity   # يعمل مع برامج ويندوز أيضًا
+```
+
+المخرَج:
+
+```
+TITLE:demo.musicxml (Ubuntu-22.04)
+NOTE:ALREADY_MAXIMIZED
+SIZE:1920x1032
+Saved: /tmp/ms.png (103208 bytes)
+```
+
+مصائد واجهتها أثناء التكييف:
+
+- **MuseScore يسمّي نافذته باسم الملف المفتوح** (`demo.musicxml (Ubuntu-22.04)`)،
+  فالبحث عن كلمة "MuseScore" لا يجد شيئًا. لذلك الافتراضي: أكبر نافذة WSLg.
+- **`EnumWindows` من PowerShell يُطلق من WSL** رجّع نافذة واحدة فقط (نافذته هو)،
+  رغم أن المقبض موجود؛ الحل: المشي على سلسلة `GetWindow(GW_HWNDNEXT)`.
+- التكبير **مطفأ افتراضيًا** (لا نغيّر ترتيب نوافذك)؛ فعّله بـ`SHOT_AUTO_MAXIMIZE=1`.
+- `SHOT_AUTO_FOCUS=0` يجعل النافذة المصغّرة/غير النشطة خطأً صريحًا بدل تصحيحها.
+- إن كانت عدة نوافذ مطابقة يطبع `NOTE:MULTIPLE_MATCHES` ويأخذ الأكبر.
+
+---
+
+## ٦) ربط MCP (اختياري)
 
 مشروع [ghchen99/mcp-musescore](https://github.com/ghchen99/mcp-musescore) يفتح
 سكور مفتوح في MuseScore عبر WebSocket (بورت 8765) ويسمح للوكيل يقرأ ويعدّل
@@ -119,7 +153,7 @@ Plugins، أو أن MuseScore ليس مفتوحًا على سكور.
 
 ---
 
-## ٦) مشاكل شائعة
+## ٧) مشاكل شائعة
 
 | العرض | السبب / الحل |
 |---|---|
