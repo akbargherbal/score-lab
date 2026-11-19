@@ -96,7 +96,12 @@ fi
 mkdir -p "$(dirname "$OUT")"
 OUT_WIN="$(wslpath -w "$OUT")"
 
-ARGS=(-OutFile "$OUT_WIN" -Title "$TITLE"
+TITLE_FILE=""
+if [ -n "$TITLE" ]; then
+    TITLE_FILE="$(mktemp /tmp/opencode/shot-title.XXXXXX 2>/dev/null || mktemp)"
+    printf '%s' "$TITLE" > "$TITLE_FILE"
+fi
+ARGS=(-OutFile "$OUT_WIN" -TitleFile "$(wslpath -w "$TITLE_FILE")"
       -AutoFocus "${SHOT_AUTO_FOCUS:-1}" -AutoMaximize "$MAXIMIZE" \
       -ParkCursor "$PARK")
 [ "$CLIENT" -eq 1 ] && ARGS+=(-ClientArea)
@@ -117,6 +122,7 @@ while :; do
     sleep 1
 done
 
+[ -n "$TITLE_FILE" ] && rm -f "$TITLE_FILE"
 if [ ! -s "$OUT" ]; then
     echo "ERROR:FILE_MISSING: PowerShell reported OK but $OUT is missing or empty" >&2
     exit 1

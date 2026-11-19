@@ -27,6 +27,8 @@
   input[type=range] { flex:1; accent-color:var(--accent); }
   .grid { display:grid; grid-template-columns: minmax(0,2.1fr) minmax(280px,1fr);
           gap:14px; padding:0 18px 18px; align-items:start; }
+  .grid.nopages { grid-template-columns: minmax(0,1fr); }
+  .pagecard[hidden] { display:none; }
   .stack { display:flex; flex-direction:column; gap:8px; min-width:0; }
   canvas { display:block; width:100%; background:var(--panel);
            border:1px solid #262c35; border-radius:6px; }
@@ -79,7 +81,7 @@
     <div class="legend">النوتات (بيانو-رول) — أعلى = أعلى طبقة</div>
     <canvas id="roll" height="230"></canvas>
   </div>
-  <div class="pagecard">
+  <div class="pagecard" id="pagecard">
     <img id="page" alt="صفحة السكور">
     <div class="cap"><span id="pagecap">—</span><span>≈ تزامن تقديري</span></div>
   </div>
@@ -268,6 +270,7 @@ function drawRoll(t) {
 }
 
 function updatePages(bar) {
+  if (!DATA.pages || !DATA.pages.length) return;
   const per = DATA.barsPerPage;
   const idx = Math.min(DATA.pages.length - 1, Math.max(0, Math.floor((bar - 1) / per)));
   if (pageImg.dataset.idx !== String(idx)) {
@@ -334,6 +337,10 @@ window.addEventListener('keydown', e => {
   if (e.code === 'ArrowRight' && e.shiftKey) {}
 });
 
+if (!DATA.pages || !DATA.pages.length) {
+  document.getElementById('pagecard').hidden = true;
+  document.querySelector('.grid').classList.add('nopages');
+}
 document.getElementById('meta').textContent =
   DATA.key + ' · ' + DATA.meter.join('/') + ' · ♩=' + DATA.bpm + ' · ' +
   DATA.bars.length + ' بار · ' + fmt(DUR);

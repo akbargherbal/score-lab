@@ -18,6 +18,7 @@
 param(
     [string]$OutFile = "",
     [string]$Title = "",
+    [string]$TitleFile = "",
     [int]$AutoFocus = 1,
     [int]$AutoMaximize = 0,
     [switch]$ClientArea,
@@ -26,6 +27,15 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Titles are Arabic here; without this, PowerShell writes "?" to stdout.
+try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
+
+# -Title arrives through the WSL interop command line, which mangles non-ASCII
+# (Arabic titles became "??????"), so the wrapper can pass a UTF-8 file instead.
+if ($TitleFile) {
+    $Title = (Get-Content -LiteralPath $TitleFile -Encoding UTF8 -Raw).Trim()
+}
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 Add-Type @'

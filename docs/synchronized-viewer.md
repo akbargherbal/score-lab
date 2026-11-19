@@ -14,6 +14,24 @@ MuseScore لا يضع ملف صوتي داخل السكور على خط الزم
 `tools/score_viewer.py` يحوّل هذه الملفات + التسجيل الأصلي + صفحات السكور إلى
 صفحة واحدة تعمل من `file://` بلا خادم وبلا مكتبات خارجية.
 
+## نسختان: مع السكور أو بدونه
+
+العارض لا يحتاج MuseScore إطلاقًا: الموجة والبارات والكوردات والأقسام
+والبيانو-رول كلها من ملفات `.lab` + ملف الصوت، والبيانات مضمّنة في الـHTML.
+صفحة السكور (الركن الأيسر) ميزة اختيارية تحتاج `mscore-cli` لتصدير الصور:
+
+```bash
+# بلا سكور (لا MuseScore، ولا MusicXML، ~10 ثوانٍ للتشغيل كله)
+python3 tools/view_run.py --run <run> --transcripts transcripts \
+    --audio-dir gs://…/<run> --out <out> --no-pages
+
+# مع السكور (يحتاج <take>.musicxml مسبقًا + MuseScore)
+python3 tools/view_run.py --run <run> --audio-dir gs://…/<run> --out <out>
+```
+
+ولتراك واحد: `score_viewer.py --abc … --audio … --out viewer.html` بدون
+`--pages` = عارض بلا سكور، ومع `--pages <dir>` = يظهر ركن السكور.
+
 ## شنو يعرض
 
 - **الموجة** مع خطوط البارات وأرقامها وقوس كل قسم.

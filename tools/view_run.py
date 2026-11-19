@@ -100,8 +100,8 @@ INDEX = """<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
 </style></head><body>
 <header><h1>عارضات السكور المتزامنة — {n} take</h1>
 <div class="sub">{run}</div></header>
-<table><thead><tr><th>غلاف</th><th>take</th><th>مدّة</th><th>مقام</th>
-<th>ميزان</th><th>BPM</th><th>بارات</th><th>كوردات</th><th>صفحات</th>
+<table><thead><tr>{cover_th}<th>take</th><th>مدّة</th><th>مقام</th>
+<th>ميزان</th><th>BPM</th><th>بارات</th><th>كوردات</th>{pages_th}
 <th>رندر الموديل</th></tr></thead><tbody>
 {rows}
 </tbody></table></body></html>
@@ -119,6 +119,9 @@ def main() -> int:
     ap.add_argument("--transcripts", default="transcripts")
     ap.add_argument("--limit", type=int, default=0, help="0 = all")
     ap.add_argument("--force", action="store_true", help="rebuild viewers")
+    ap.add_argument("--no-pages", action="store_true",
+                    help="notation-free viewer: no MuseScore, no page images, "
+                         "no MusicXML needed")
     args = ap.parse_args()
 
     out_root = (args.out or args.run).expanduser()
@@ -137,19 +140,22 @@ def main() -> int:
         viewer = track_out / "viewer.html"
         musicxml = args.run.expanduser() / f"{name}.musicxml"
         if args.force or not viewer.is_file():
-            if not musicxml.is_file():
+            if not args.no_pages and not musicxml.is_file():
                 print(f"skip {name}: no {musicxml.name} (run abc_to_musicxml.py first)",
                       file=sys.stderr)
                 continue
             track_out.mkdir(parents=True, exist_ok=True)
             audio = audio_for(name, track_out, args.audio_dir)
-            pages = pages_for(musicxml, track_out)
-            run([sys.executable, str(VIEWER), "--abc", str(track),
-                 "--audio", str(audio), "--pages", str(track_out / "pages"),
-                 "--out", str(viewer), "--title", name])
+            pages = [] if args.no_pages else pages_for(musicxml, track_out)
+            cmd = [sys.executable, str(VIEWER), "--abc", str(track),
+                   "--audio", str(audio), "--out", str(viewer), "--title", name]
+            if pages:
+                cmd += ["--pages", str(track_out / "pages")]
+            run(cmd)
         else:
             audio = track_out / "audio.mp3"
-            pages = sorted((track_out / "pages").glob("p-*.png"))
+            pages = [] if args.no_pages else sorted(
+                (track_out / "pages").glob("p-*.png"))
 
         info = header(track / "score.abc")
         meta = json.loads((track / "meta.json").read_text())
@@ -161,19 +167,23 @@ def main() -> int:
         chords = len((track / "chord.lab").read_text().splitlines())
         rows.append(
             "<tr>"
-            f'<td><a href="{name}/viewer.html"><img src="{name}/pages/{pages[0].name}" alt=""></a></td>'
-            f'<td><a href="{name}/viewer.html">{name}</a></td>'
-            f'<td class="num">{m}:{s:02d}</td>'
+            + (f'<td><a href="{name}/viewer.html"><img src="{name}/pages/{pages[0].name}" alt=""></a></td>'
+               if pages else "")
+            + f'<td><a href="{name}/viewer.html">{name}</a></td>'
+            + f'<td class="num">{m}:{s:02d}</td>'
             f'<td>{info["key"]}</td><td>{info["meter"]}</td>'
             f'<td class="num">{info["bpm"]}</td><td class="num">{bars}</td>'
-            f'<td class="num">{chords}</td><td class="num">{len(pages)}</td>'
-            f'<td class="num">{(meta.get("seconds") or 0):.0f}s</td>'
+            f'<td class="num">{chords}</td>'
+            + (f'<td class="num">{len(pages)}</td>' if pages else "")
+            + f'<td class="num">{(meta.get("seconds") or 0):.0f}s</td>'
             "</tr>")
         print(f"[{i}/{len(takes)}] {name}  {dur:.0f}s  {bars} bars  "
               f"{len(pages)} pages", flush=True)
 
     (out_root / "index.html").write_text(
-        INDEX.format(run=args.run.name, n=len(rows), rows="\n".join(rows)),
+        INDEX.format(run=args.run.name, n=len(rows), rows="\n".join(rows),
+                     cover_th="<th>غلاف</th>" if not args.no_pages else "",
+                     pages_th="" if args.no_pages else "<th>صفحات</th>"),
         encoding="utf-8")
     print(f"\nindex: {out_root / 'index.html'}")
     return 0

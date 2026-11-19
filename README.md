@@ -25,7 +25,7 @@ score. Unrelated to any production project; this is for learning.*
 | `tools/musescore` | مُشغّل الواجهة الرسومية (WSLg) |
 | `tools/mscore-cli` | تحويل/تصدير بلا نافذة: pdf, png, mp3, flac, mid, mscz |
 | `tools/take_shot.sh` | تصوير نافذة WSLg (MuseScore) من جهة ويندوز — `--list`, `--wait`, `--client`، للتحقق البصري |
-| `tools/score_viewer.py` | عارض متزامن: التسجيل الأصلي + الموجة + البارات + الكوردات + الأقسام + النوتات + صفحة السكور على خط زمني واحد |
+| `tools/score_viewer.py` | عارض متزامن: التسجيل الأصلي + الموجة + البارات + الكوردات + الأقسام + النوتات على خط زمني واحد (صفحة السكور اختيارية بـ`--pages`، وبلاها لا يحتاج MuseScore) |
 | `tools/view_run.py` | يبني العارض لكل تراكات تشغيلية + فهرس `index.html`، مع جلب الصوت من `gs://` |
 | `tools/vendor/` | نسخة مثبّتة من parser `abc_tools.py` (MIT) ليكون المستودع مكتفيًا بذاته |
 | `examples/demo.abc` | ٤ بارات: كوردات + لحن + ربط (tie) عبر خط البار |

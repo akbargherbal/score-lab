@@ -115,7 +115,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--abc", type=Path, required=True, help="track dir with .lab files")
     ap.add_argument("--audio", type=Path, required=True)
-    ap.add_argument("--pages", type=Path, required=True, help="dir of p-N.png")
+    ap.add_argument("--pages", type=Path, default=None,
+                    help="dir of p-N.png (optional; omit for a notation-free viewer)")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--title", default=None)
     args = ap.parse_args()
@@ -138,11 +139,13 @@ def main() -> int:
     notes += [[a, b, p, 1] for a, b, p in
               read_melody(args.abc / "melody_instrumental.lab")]
 
-    pages = sorted(args.pages.glob("p-*.png"),
-                   key=lambda p: int(re.search(r"p-(\d+)", p.name).group(1)))
-    if not pages:
-        print("no page images found", file=sys.stderr)
-        return 2
+    pages: list[Path] = []
+    if args.pages is not None:
+        pages = sorted(args.pages.glob("p-*.png"),
+                       key=lambda p: int(re.search(r"p-(\d+)", p.name).group(1)))
+        if not pages:
+            print(f"no page images in {args.pages}", file=sys.stderr)
+            return 2
 
     data = {
         "duration": round(duration, 3),
@@ -152,8 +155,8 @@ def main() -> int:
         "sections": sections,
         "notes": notes,
         "peaks": peaks_from_audio(args.audio),
-        "pages": [f"{args.pages.name}/{p.name}" for p in pages],
-        "barsPerPage": max(1, len(bars) / len(pages)),
+        "pages": [f"{args.pages.name}/{p.name}" for p in pages] if pages else [],
+        "barsPerPage": max(1, len(bars) / len(pages)) if pages else 0,
         "zoomSpan": 8 * (duration / max(1, len(bars))),
         "key": header["key"],
         "meter": header["meter"],
