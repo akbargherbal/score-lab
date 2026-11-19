@@ -23,6 +23,7 @@ param(
     [int]$AutoMaximize = 0,
     [switch]$ClientArea,
     [switch]$List,
+    [switch]$Screen,
     [int]$ParkCursor = 1
 )
 
@@ -82,6 +83,21 @@ public class WinShot {
 '@
 
 [void][WinShot]::SetProcessDpiAwarenessContext([IntPtr](-4))
+
+if ($Screen) {
+    # Whole virtual desktop: no window titles involved, so this also works for
+    # pages whose title the interop layer mangles.
+    $vs = [System.Windows.Forms.SystemInformation]::VirtualScreen
+    Write-Output "SIZE:$($vs.Width)x$($vs.Height)"
+    $bmp = New-Object System.Drawing.Bitmap $vs.Width, $vs.Height
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($vs.X, $vs.Y, 0, 0,
+                      (New-Object System.Drawing.Size($vs.Width, $vs.Height)))
+    $bmp.Save($OutFile, [System.Drawing.Imaging.ImageFormat]::Png)
+    $g.Dispose(); $bmp.Dispose()
+    Write-Output "OK"
+    exit 0
+}
 
 $candidates = New-Object System.Collections.ArrayList
 $all = New-Object System.Collections.ArrayList

@@ -48,15 +48,15 @@
 <body>
 <header>
   <h1>__TITLE__</h1>
-  <div class="meta" id="meta"></div>
+  <div class="meta" id="meta" dir="ltr"></div>
 </header>
 
 <div class="readout">
-  <div><b id="clock">00:00.0</b><br><span>الزمن</span></div>
-  <div><b id="bar">1</b><br><span id="bars-label">بار</span></div>
-  <div><b class="chord" id="chord">—</b><br><span>الكورد</span></div>
+  <div><b id="clock" dir="ltr">00:00.0</b><br><span>الزمن</span></div>
+  <div><b id="bar" dir="ltr">1</b><br><span id="bars-label">بار</span></div>
+  <div><b class="chord" id="chord" dir="ltr">—</b><br><span>الكورد</span></div>
   <div><b class="section" id="section">—</b><br><span>القسم</span></div>
-  <div><b id="beat" style="font-size:15px">—</b><br><span>النبضة</span></div>
+  <div><b id="beat" style="font-size:15px" dir="ltr">—</b><br><span>النبضة</span></div>
 </div>
 
 <div class="controls">
@@ -343,7 +343,7 @@ if (!DATA.pages || !DATA.pages.length) {
 }
 document.getElementById('meta').textContent =
   DATA.key + ' · ' + DATA.meter.join('/') + ' · ♩=' + DATA.bpm + ' · ' +
-  DATA.bars.length + ' بار · ' + fmt(DUR);
+  fmt(DUR) + ' · ' + DATA.bars.length + ' bars';
 
 window.addEventListener('resize', redraw);
 // Deep link: viewer.html#t=75 opens at 1:15 (handy for sharing a moment).

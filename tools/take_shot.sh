@@ -26,6 +26,7 @@
 #   --wait SECONDS      retry up to N seconds while the window does not exist
 #   --list              print visible windows (wslg/win, size, title) and exit
 #   --maximize          maximize before capture (off by default)
+#   --screen            capture the whole desktop instead of one window
 #   --keep-cursor       do not park the pointer in the corner first
 #                       (parking avoids taskbar/tooltip flyouts in the shot)
 #
@@ -47,6 +48,7 @@ CLIENT=0
 WAIT=0
 MAXIMIZE="${SHOT_AUTO_MAXIMIZE:-0}"
 LIST=0
+SCREEN=0
 PARK="${SHOT_PARK_CURSOR:-1}"
 
 want_value=""
@@ -63,12 +65,28 @@ for arg in "$@"; do
         --client) CLIENT=1 ;;
         --maximize) MAXIMIZE=1 ;;
         --keep-cursor) PARK=0 ;;
+        --screen) SCREEN=1 ;;
         --wait) want_value="wait" ;;
         --wait=*) WAIT="${arg#--wait=}" ;;
         -h|--help) sed -n '2,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         -*) echo "ERROR:BAD_ARG: unknown option $arg" >&2; exit 1 ;;
         *)
-            if [ -z "$OUT" ]; then OUT="$arg"; else TITLE="$arg"; fi
+            if [ "$SCREEN" -eq 1 ]; then
+    [ -n "$OUT" ] || { echo "Usage: $0 <out.png> --screen" >&2; exit 1; }
+    mkdir -p "$(dirname "$OUT")"
+    set +e
+    RESULT="$(run_ps -OutFile "$(wslpath -w "$OUT")" -Screen)"
+    STATUS=$?
+    set -e
+    if [ "$STATUS" -ne 0 ] || ! grep -qx "OK" <<<"$RESULT"; then
+        echo "$RESULT" >&2; exit 1
+    fi
+    grep -E "^(SIZE|NOTE):" <<<"$RESULT"
+    echo "Saved: $OUT ($(stat -c %s "$OUT") bytes)"
+    exit 0
+fi
+
+if [ -z "$OUT" ]; then OUT="$arg"; else TITLE="$arg"; fi
             ;;
     esac
 done
@@ -86,6 +104,21 @@ run_ps() {
 if [ "$LIST" -eq 1 ]; then
     run_ps -List
     exit $?
+fi
+
+if [ "$SCREEN" -eq 1 ]; then
+    [ -n "$OUT" ] || { echo "Usage: $0 <out.png> --screen" >&2; exit 1; }
+    mkdir -p "$(dirname "$OUT")"
+    set +e
+    RESULT="$(run_ps -OutFile "$(wslpath -w "$OUT")" -Screen)"
+    STATUS=$?
+    set -e
+    if [ "$STATUS" -ne 0 ] || ! grep -qx "OK" <<<"$RESULT"; then
+        echo "$RESULT" >&2; exit 1
+    fi
+    grep -E "^(SIZE|NOTE):" <<<"$RESULT"
+    echo "Saved: $OUT ($(stat -c %s "$OUT") bytes)"
+    exit 0
 fi
 
 if [ -z "$OUT" ]; then
