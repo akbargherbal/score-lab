@@ -81,11 +81,60 @@ python3 tools/view_run.py --run <run-dir> \
     --out <run-dir>/score --no-pages
 ```
 
-- `--transcripts` يقبل المجلد مفكوكًا (`<take>/score.abc`)، أو أرشيف
-  `<take>.tar.gz` لكل تراك، أو ملف `.zip` واحدًا يحوي شجرة `transcripts/`
-  كاملة (كما يخرج من abc-transcript). وإذا لم يوجد المجلد أصلًا يبحث في
-  `<run>/abc_transcript/` ثم جذر التشغيل. الأرشيفات تُفكّ في
-  `<out>/.transcripts/`، ولا يُكتب شيء داخل `--run`.
+### شكل مجلد التشغيل
+
+لازم يطابق هذا الشكل (الأسماء أمثلة؛ المهم البنية وأسماء الملفات):
+
+```text
+<run-dir>/
+├── transcripts/                    # --transcripts transcripts
+│   ├── p01_hijaz_…/                # مجلد لكل take
+│   │   ├── score.abc               # إلزامي: المقام/الميزان/السرعة/عدد البارات
+│   │   ├── downbeat.lab            # إلزامي: لحظة بداية كل بار
+│   │   ├── beat.lab                # إلزامي: لحظة كل نبضة
+│   │   ├── chord.lab               # إلزامي: start end chord
+│   │   ├── structure.lab           # إلزامي: start end section
+│   │   ├── melody_vocal.lab        # إلزامي: start end midi_pitch
+│   │   ├── melody_instrumental.lab # إلزامي: start end midi_pitch
+│   │   └── meta.json               # إلزامي: منه تُقرأ مدّة الموديل للفهرس
+│   ├── p02_nahawand_…/
+│   └── (أي ملفات أخرى مثل events.json تُتجاهل)
+├── p01_hijaz_….mp3                 # في --audio-dir (هنا أو gs://…/<run>/)
+├── p02_nahawand_….mp3
+├── p01_hijaz_….musicxml            # اختياري: فقط لصفحات السكور (بلا --no-pages)
+└── score/                          # --out (يُنشأ تلقائيًا)
+    ├── index.html
+    └── p01_hijaz_…/
+        ├── viewer.html
+        └── audio.mp3
+```
+
+بدل المجلدات المفكوكة، يكفي أرشيف لكل تراك — نفس المحتوى بداخله:
+
+```text
+<run-dir>/transcripts/
+├── p01_hijaz_….tar.gz     # بداخله p01_hijaz_…/score.abc + بقية الملفات
+└── p02_nahawand_….tar.gz
+```
+
+أو أرشيف `.zip` واحد للشجرة كاملة، في `abc_transcript/` أو جذر التشغيل:
+
+```text
+<run-dir>/
+├── abc_transcript/
+│   └── <run>_abc_transcript.zip
+│       └── transcripts/           # الغلاف هذا طبيعي
+│           ├── p01_hijaz_…/{score.abc, *.lab, meta.json}
+│           └── p02_nahawand_…/
+└── p01_hijaz_….mp3
+```
+
+الأرشيفات تُفكّ تلقائيًا في `<out>/.transcripts/`، فلا حاجة لفكّها يدويًا
+ولا يُكتب شيء داخل `<run-dir>`. و`<run>/<take>.mp3` غير مطلوب إذا كان
+`--audio-dir` يشير إلى `gs://` أو إلى مجلد آخر.
+
+- `--transcripts` يقبل أي شكل من الأشكال الثلاثة أعلاه؛ وإن لم يوجد مجلد
+  `transcripts/` أصلًا يبحث في `<run>/abc_transcript/` ثم جذر التشغيل.
 - `--audio-dir` يقبل `gs://…` أو مجلدًا محليًا فيه `<take>.mp3`، والصوت
   الموجود لا يُجلب مرة ثانية. `--force` يعيد البناء و`--limit N` للتجربة.
 - الناتج: `<out>/<take>/viewer.html` + `<out>/index.html` (مدد، مقام، ميزان،
