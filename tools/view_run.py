@@ -2,23 +2,29 @@
 """Build a synchronized viewer for every transcript in a run, plus an index.
 
 `score_viewer.py` handles one track. This is the batch wrapper for a whole
-`transcripts/` tree that already has its MusicXML next to it:
+transcripts tree:
 
-    <run>/transcripts/<take>/           .lab files + score.abc   (transcribe.py)
-    <run>/<take>.musicxml               (abc_to_musicxml.py)
-    <run>/<take>.mp3                    the take's audio         (GCS or local)
+    <run>/transcripts/<take>/     score.abc + the .lab files   (transcribe.py)
+    <run>/<take>.musicxml         only needed for the score pages
+                                  (abc_to_musicxml.py)
+    <take>.mp3                    the take's audio, in --audio-dir
 
-It writes, per take, `<out>/<take>/{viewer.html,audio.mp3,pages/}` and an
-`<out>/index.html` gallery, then prints a summary line per take.
+It writes, per take, `<out>/<take>/{viewer.html,audio.mp3}` (+ `pages/` when
+page images are built) and an `<out>/index.html` gallery.
+
+With `--no-pages` nothing touches MuseScore or MusicXML: the viewer is built
+from the .lab files + audio alone. That is the default choice when you only
+want the waveform, chords, sections and piano roll.
 
 Usage:
     python3 tools/view_run.py --run ~/score-view/<run> \
+        --transcripts transcripts \
         --audio-dir gs://<bucket>/.../<run> \
-        --out ~/score-view/<run>
+        --out ~/score-view/<run> --no-pages
 
-`--audio-dir` accepts a gs:// prefix (the take is fetched with gcloud) or a
-local directory; audio already present is never re-downloaded, and rendered
-pages are reused.
+`--audio-dir` accepts a gs:// prefix (fetched with gcloud) or a local
+directory; audio already present is never re-downloaded, and built pages are
+reused.
 """
 from __future__ import annotations
 
@@ -112,16 +118,22 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", type=Path, required=True,
-                    help="run dir with transcripts/ and <take>.musicxml")
-    ap.add_argument("--out", type=Path, default=None, help="default: --run")
+                    help="generation run dir: it holds <transcripts>/<take>/ "
+                         "with score.abc + the .lab files, and <take>.musicxml")
+    ap.add_argument("--out", type=Path, default=None,
+                    help="where <take>/viewer.html + index.html go "
+                         "(default: the --run dir itself)")
     ap.add_argument("--audio-dir", required=True,
-                    help="gs:// prefix or local dir holding <take>.mp3")
-    ap.add_argument("--transcripts", default="transcripts")
+                    help="where the takes' audio lives: a gs:// prefix or a "
+                         "local dir containing <take>.mp3")
+    ap.add_argument("--transcripts", default="transcripts", metavar="DIR",
+                    help="subdirectory of --run holding the takes "
+                         "(default: transcripts)")
     ap.add_argument("--limit", type=int, default=0, help="0 = all")
     ap.add_argument("--force", action="store_true", help="rebuild viewers")
     ap.add_argument("--no-pages", action="store_true",
-                    help="notation-free viewer: no MuseScore, no page images, "
-                         "no MusicXML needed")
+                    help="notation-free viewer (waveform/chords/sections/piano "
+                         "roll only): no MuseScore, no MusicXML, no page images")
     args = ap.parse_args()
 
     out_root = (args.out or args.run).expanduser()
