@@ -26,10 +26,10 @@ score. Unrelated to any production project; this is for learning.*
 | `tools/mscore-cli` | تحويل/تصدير بلا نافذة: pdf, png, mp3, flac, mid, mscz |
 | `tools/take_shot.sh` | تصوير نافذة WSLg (MuseScore) من جهة ويندوز — `--list`, `--wait`, `--client`، للتحقق البصري |
 | `tools/score_viewer.py` | عارض متزامن: التسجيل الأصلي + الموجة + البارات + الكوردات + الأقسام + النوتات على خط زمني واحد (صفحة السكور اختيارية بـ`--pages`، وبلاها لا يحتاج MuseScore) |
-| `tools/view_run.py` | يبني العارض لكل تراكات تشغيلية + فهرس `index.html`، مع جلب الصوت من `gs://` |
+| `tools/view_run.py` | يبني العارض لكل تراكات تشغيلية + فهرس `index.html`، مع جلب الصوت من `gs://`، ويقبل التراكات مفكوكة أو كأرشيفات `.tar.gz` / `.zip` |
 | `tools/vendor/` | نسخة مثبّتة من parser `abc_tools.py` (MIT) ليكون المستودع مكتفيًا بذاته |
 | `examples/demo.abc` | ٤ بارات: كوردات + لحن + ربط (tie) عبر خط البار |
-| `tests/` | ١١ اختبار على المحوّل (بدون شبكة، بدون MuseScore) |
+| `tests/` | ١٦ اختبارًا على المحوّل واكتشاف تراكات التشغيل (بدون شبكة، بدون MuseScore) |
 
 ## البدء السريع
 
@@ -68,6 +68,37 @@ python3 tools/abc_to_musicxml.py score.abc --out score.musicxml \
 
 `MUSESCORE` متغيّر بيئة يحدد الملف التنفيذي، وافتراضيًا يستخدم `mscore-cli`
 أو `musescore` من الـ`PATH`.
+
+## العارض المتزامن لتشغيل كامل
+
+`tools/view_run.py` يبني صفحة لكل take + فهرسًا واحدًا. الأمر الأساسي (بلا
+MuseScore ولا MusicXML):
+
+```bash
+python3 tools/view_run.py --run <run-dir> \
+    --transcripts transcripts \
+    --audio-dir gs://<bucket>/.../<run> \
+    --out <run-dir>/score --no-pages
+```
+
+- `--transcripts` يقبل المجلد مفكوكًا (`<take>/score.abc`)، أو أرشيف
+  `<take>.tar.gz` لكل تراك، أو ملف `.zip` واحدًا يحوي شجرة `transcripts/`
+  كاملة (كما يخرج من abc-transcript). وإذا لم يوجد المجلد أصلًا يبحث في
+  `<run>/abc_transcript/` ثم جذر التشغيل. الأرشيفات تُفكّ في
+  `<out>/.transcripts/`، ولا يُكتب شيء داخل `--run`.
+- `--audio-dir` يقبل `gs://…` أو مجلدًا محليًا فيه `<take>.mp3`، والصوت
+  الموجود لا يُجلب مرة ثانية. `--force` يعيد البناء و`--limit N` للتجربة.
+- الناتج: `<out>/<take>/viewer.html` + `<out>/index.html` (مدد، مقام، ميزان،
+  بارات، كوردات). افتح `index.html` مباشرة من `file://`.
+- لصفحات السكور: احذف `--no-pages`، وجهّز `<run>/<take>.musicxml`
+  (`abc_to_musicxml.py`) مع MuseScore.
+
+وتراك واحد فقط:
+
+```bash
+python3 tools/score_viewer.py --abc <take-dir> --audio <take>.mp3 \
+    --out viewer.html --title "<take>"
+```
 
 ## الاختبارات
 

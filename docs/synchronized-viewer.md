@@ -32,6 +32,11 @@ python3 tools/view_run.py --run <run> --audio-dir gs://…/<run> --out <out>
 ولتراك واحد: `score_viewer.py --abc … --audio … --out viewer.html` بدون
 `--pages` = عارض بلا سكور، ومع `--pages <dir>` = يظهر ركن السكور.
 
+`--transcripts` يقبل أي شكل وصل به التشغيل: مجلد `<take>/` مفكوك، أو
+أرشيفات `<take>.tar.gz`، أو ملف zip واحدًا يحوي شجرة `transcripts/` كاملة
+(كما يخرج من abc-transcript). الأرشيفات تُفكّ تلقائيًا إلى
+`<out>/.transcripts/`، فلا يُكتب شيء داخل مجلد التشغيل.
+
 ## شنو يعرض
 
 - **الموجة** مع خطوط البارات وأرقامها وقوس كل قسم.
@@ -86,7 +91,9 @@ python3 tools/view_run.py --run ~/score-view/<run> \
 يقرأ `<run>/transcripts/<take>/*.lab` و`<run>/<take>.musicxml`، يجيب الصوت من
 `gs://` (أو من مجلد محلي) مرة واحدة، يبني صفحات السكور، ويكتب
 `<out>/<take>/viewer.html` + فهرس `<out>/index.html` فيه كل التراك مع الغلاف
-والمقام والمدد والمجاميع. `--force` يعيد البناء، و`--limit N` للتجربة.
+والمقام والمدد والمجاميع. `--force` يعيد البناء، و`--limit N` للتجربة. وإذا لم
+يكن مجلد `transcripts/` موجودًا أصلًا، يبحث عن الأرشيف في
+`<run>/abc_transcript/` أو جذر التشغيل ويفكّه كما سبق.
 
 ## بدائل MuseScore الرسمية (4.7)
 

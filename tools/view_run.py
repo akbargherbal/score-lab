@@ -5,12 +5,15 @@
 transcripts tree:
 
     <run>/transcripts/<take>/     score.abc + the .lab files   (transcribe.py)
+                                  (or <take>.tar.gz / .zip archives, or a
+                                  whole-transcripts zip: unpacked on the fly)
     <run>/<take>.musicxml         only needed for the score pages
                                   (abc_to_musicxml.py)
     <take>.mp3                    the take's audio, in --audio-dir
 
 It writes, per take, `<out>/<take>/{viewer.html,audio.mp3}` (+ `pages/` when
-page images are built) and an `<out>/index.html` gallery.
+page images are built) and an `<out>/index.html` gallery. Archives are unpacked
+under `<out>/.transcripts/`; the run dir itself is never written to.
 
 With `--no-pages` nothing touches MuseScore or MusicXML: the viewer is built
 from the .lab files + audio alone. That is the default choice when you only
@@ -35,7 +38,9 @@ import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
+import tarfile
+import zipfile
+from pathlib import Path, PurePosixPath
 
 HERE = Path(__file__).resolve().parent
 VIEWER = HERE / "score_viewer.py"
@@ -76,6 +81,115 @@ def audio_for(take: str, track_out: Path, audio_dir: str) -> Path:
     else:
         shutil.copy2(Path(audio_dir) / f"{take}.mp3", audio)
     return audio
+
+
+ARCHIVE_SUFFIXES = (".tar.gz", ".tgz", ".tar", ".zip")
+
+
+def is_archive(path: Path) -> bool:
+    return path.is_file() and path.name.lower().endswith(ARCHIVE_SUFFIXES)
+
+
+def archive_stem(archive: Path) -> str:
+    """`p01.tar.gz` -> `p01`, `run_abc_transcript.zip` -> `run_abc_transcript`."""
+    for suffix in ARCHIVE_SUFFIXES:
+        if archive.name.lower().endswith(suffix):
+            return archive.name[:-len(suffix)]
+    return archive.stem
+
+
+def take_dirs(root: Path, depth: int = 2):
+    """Yield dirs holding `score.abc`, at most `depth` levels below `root`."""
+    if (root / "score.abc").is_file():
+        yield root
+        return
+    if depth <= 0 or not root.is_dir():
+        return
+    for child in sorted(root.iterdir()):
+        if child.is_dir() and not child.name.startswith("."):
+            yield from take_dirs(child, depth - 1)
+
+
+def archives_under(root: Path, depth: int = 2) -> list[Path]:
+    if is_archive(root):
+        return [root]
+    if not root.is_dir() or depth <= 0:
+        return []
+    found: list[Path] = []
+    for child in sorted(root.iterdir()):
+        if is_archive(child):
+            found.append(child)
+        elif child.is_dir() and not child.name.startswith("."):
+            found.extend(archives_under(child, depth - 1))
+    return found
+
+
+def member_names(archive: Path) -> list[str]:
+    if archive.suffix.lower() == ".zip":
+        with zipfile.ZipFile(archive) as zf:
+            return zf.namelist()
+    with tarfile.open(archive) as tar:
+        return tar.getnames()
+
+
+def unpack(archive: Path, dest: Path) -> None:
+    dest.mkdir(parents=True, exist_ok=True)
+    if archive.suffix.lower() == ".zip":
+        with zipfile.ZipFile(archive) as zf:
+            zf.extractall(dest)
+        return
+    with tarfile.open(archive) as tar:
+        try:
+            tar.extractall(dest, filter="data")
+        except TypeError:  # Python < 3.12 has no extraction filters
+            tar.extractall(dest)
+
+
+def discover_takes(roots: list[Path], cache: Path) -> list[tuple[str, Path]]:
+    """Every take reachable from `roots`, unpacking archives as needed.
+
+    Transcripts arrive in whichever shape the run was copied in:
+
+        transcripts/<take>/             expanded (transcribe.py)
+        transcripts/<take>.tar.gz       per take (transcript-archive/1)
+        <run>/abc_transcript/<run>.zip  whole tree (abc-transcript)
+
+    Zips usually wrap everything in a `transcripts/` folder, so archives are
+    unpacked under `cache` rather than next to themselves; the run is never
+    written to. Each take is keyed by its folder name so
+    `<audio-dir>/<take>.mp3` keeps lining up.
+    """
+    takes: dict[str, Path] = {}
+
+    for root in roots:
+        for track in take_dirs(root):
+            takes.setdefault(track.name, track)
+
+    for root in roots:
+        for archive in archives_under(root):
+            try:
+                names = member_names(archive)
+            except (OSError, tarfile.TarError, zipfile.BadZipFile) as exc:
+                print(f"skip {archive}: {exc}", file=sys.stderr)
+                continue
+            inside = {PurePosixPath(n).parent.name
+                      for n in names if n.endswith("/score.abc")}
+            if not inside:
+                print(f"skip {archive.name}: no <take>/score.abc inside",
+                      file=sys.stderr)
+                continue
+            missing = inside - takes.keys()
+            if not missing:
+                continue
+            dest = cache / archive_stem(archive)
+            have = {t.name for t in take_dirs(dest)} if dest.is_dir() else set()
+            if missing - have:
+                unpack(archive, dest)
+                print(f"unpacked {archive.name}", flush=True)
+            for track in take_dirs(dest):
+                takes.setdefault(track.name, track)
+
+    return sorted(takes.items())
 
 
 def header(score_abc: Path) -> dict:
@@ -121,13 +235,14 @@ def main() -> int:
                     help="generation run dir: it holds <transcripts>/<take>/ "
                          "with score.abc + the .lab files, and <take>.musicxml")
     ap.add_argument("--out", type=Path, default=None,
-                    help="where <take>/viewer.html + index.html go "
-                         "(default: the --run dir itself)")
+                    help="where <take>/viewer.html + index.html go, plus the "
+                         ".transcripts/ unpack cache (default: the --run dir)")
     ap.add_argument("--audio-dir", required=True,
                     help="where the takes' audio lives: a gs:// prefix or a "
                          "local dir containing <take>.mp3")
-    ap.add_argument("--transcripts", default="transcripts", metavar="DIR",
-                    help="subdirectory of --run holding the takes "
+    ap.add_argument("--transcripts", default="transcripts", metavar="PATH",
+                    help="takes to render: a dir of <take>/score.abc, a dir of "
+                         "<take>.tar.gz or .zip archives, or one archive path "
                          "(default: transcripts)")
     ap.add_argument("--limit", type=int, default=0, help="0 = all")
     ap.add_argument("--force", action="store_true", help="rebuild viewers")
@@ -137,17 +252,27 @@ def main() -> int:
     args = ap.parse_args()
 
     out_root = (args.out or args.run).expanduser()
-    src = args.run.expanduser() / args.transcripts
-    takes = sorted(p for p in src.iterdir() if (p / "score.abc").is_file())
+    run_root = args.run.expanduser()
+    src = run_root / args.transcripts
+    cache = out_root / ".transcripts"
+    roots = [src]
+    takes = discover_takes(roots, cache)
+    if not takes:
+        # some runs only kept the archive, in abc_transcript/ or the run root
+        extra = [p for p in (run_root / "abc_transcript", run_root)
+                 if p != src]
+        roots += extra
+        takes = discover_takes(extra, cache)
     if args.limit:
         takes = takes[:args.limit]
     if not takes:
-        print(f"no transcripts under {src}", file=sys.stderr)
+        print("no transcripts found: looked for <take>/score.abc and "
+              "archives holding it in\n  " + "\n  ".join(str(r) for r in roots),
+              file=sys.stderr)
         return 2
 
     rows = []
-    for i, track in enumerate(takes, 1):
-        name = track.name
+    for i, (name, track) in enumerate(takes, 1):
         track_out = out_root / name
         viewer = track_out / "viewer.html"
         musicxml = args.run.expanduser() / f"{name}.musicxml"
