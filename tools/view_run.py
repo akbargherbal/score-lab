@@ -17,9 +17,9 @@ from the .lab files + audio alone. That is the default choice when you only
 want the waveform, chords, sections and piano roll.
 
 Usage:
-    python3 tools/view_run.py --run ~/score-view/<run> \
-        --transcripts transcripts \
-        --audio-dir gs://<bucket>/.../<run> \
+    python3 tools/view_run.py --run ~/score-view/<run>
+        --transcripts transcripts
+        --audio-dir gs://<bucket>/.../<run>
         --out ~/score-view/<run> --no-pages
 
 `--audio-dir` accepts a gs:// prefix (fetched with gcloud) or a local
